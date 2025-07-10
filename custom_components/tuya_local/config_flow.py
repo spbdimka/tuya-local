@@ -190,6 +190,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input is not None:
             device_choice = self.__cloud_devices[user_input["device_id"]]
+            _LOGGER.debug(f"spbdimka Device_choice: {device_choice}")
 
             if device_choice["ip"] != "":
                 # This is a directly addable device.
