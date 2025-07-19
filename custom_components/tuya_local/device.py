@@ -210,7 +210,7 @@ class TuyaLocalDevice(object):
     @property
     def unique_id(self):
         """Return the unique id for this device (the dev_id or dev_cid)."""
-        return self.dev_cid or self._dev_id
+        return self._dev_cid or self._dev_id
 
     @property
     def device_info(self):
