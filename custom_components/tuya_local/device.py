@@ -112,7 +112,8 @@ class TuyaLocalDevice(object):
         self._api_protocol_version_index = None
         self._api_protocol_working = False
         self._api_working_protocol_failures = 0
-        self.dev_cid = dev_cid
+        #spbdimka deleted
+        #self.dev_cid = dev_cid
         try:
             _LOGGER.debug(hass)
             if dev_cid:
