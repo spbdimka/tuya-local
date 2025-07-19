@@ -21,6 +21,7 @@ from .const import (
     API_PROTOCOL_VERSIONS,
     CONF_DEVICE_CID,
     CONF_DEVICE_ID,
+    CONF_DEVICE_PARENT,
     CONF_LOCAL_KEY,
     CONF_POLL_ONLY,
     CONF_PROTOCOL_VERSION,
@@ -113,6 +114,7 @@ class TuyaLocalDevice(object):
         self._api_working_protocol_failures = 0
         self.dev_cid = dev_cid
         try:
+            _LOGGER.debug(hass)
             if dev_cid:
                 _LOGGER.debug("spbdimka dev_cid TRUE")
                 if hass.data[DOMAIN].get(dev_id) and name != "Test":
@@ -186,10 +188,29 @@ class TuyaLocalDevice(object):
     def name(self):
         return self._name
 
+    def address(self):
+        return self._address
+
+    @property
+    def local_key(self):
+        return self._local_key
+
+    @property
+    def dev_id(self):
+        return self._dev_id
+
+    @property
+    def dev_cid(self):
+        return self._dev_cid
+
+    @property
+    def parent_dev_id(self):
+        return self._parent_dev_id
+
     @property
     def unique_id(self):
         """Return the unique id for this device (the dev_id or dev_cid)."""
-        return self.dev_cid or self._api.id
+        return self.dev_cid or self._dev_id
 
     @property
     def device_info(self):
@@ -772,6 +793,7 @@ def setup_device(hass: HomeAssistant, config: dict):
     device = TuyaLocalDevice(
         config[CONF_NAME],
         config[CONF_DEVICE_ID],
+        config[CONF_DEVICE_PARENT],
         config[CONF_HOST],
         config[CONF_LOCAL_KEY],
         config[CONF_PROTOCOL_VERSION],
