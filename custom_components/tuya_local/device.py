@@ -116,8 +116,10 @@ class TuyaLocalDevice(object):
             if dev_cid:
                 _LOGGER.debug("spbdimka dev_cid TRUE")
                 if hass.data[DOMAIN].get(dev_id) and name != "Test":
+                    _LOGGER.debug("spbdimka not test dev_id: %s", hass.data[DOMAIN].get(dev_id))
                     parent = hass.data[DOMAIN][dev_id]["tuyadevice"]
                 else:
+                    _LOGGER.debug("spbdimka maybe test dev_id: %s", hass.data[DOMAIN].get(dev_id))
                     parent = tinytuya.Device(dev_id, address, local_key)
                     if name != "Test":
                         hass.data[DOMAIN][dev_id] = {"tuyadevice": parent}
