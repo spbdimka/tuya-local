@@ -1,15 +1,15 @@
 {
     "domain": "tuya_local",
-    "name": "Tuya Local",
+    "name": "Tuya Local subdevices",
     "codeowners": [
-        "@make-all"
+        "@spbdimka"
     ],
     "config_flow": true,
     "dependencies": [],
-    "documentation": "https://github.com/make-all/tuya-local",
+    "documentation": "https://github.com/spbdimka/tuya-local",
     "integration_type": "device",
     "iot_class": "local_push",
-    "issue_tracker": "https://github.com/make-all/tuya-local/issues",
+    "issue_tracker": "https://github.com/spbdimka/tuya-local/issues",
     "loggers": [
         "tuya_local",
         "tinytuya"
