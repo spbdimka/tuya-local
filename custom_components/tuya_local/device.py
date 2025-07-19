@@ -130,7 +130,7 @@ class TuyaLocalDevice(object):
                 self._gateway_device = TuyaLocalGatewayDeviceRegistry.get_gateway_device(self)
                 self._api = TinyTuyaDeviceWrapper(
                     self,
-                    dev_cid,
+                    dev_id,
                     cid=dev_cid,
                     parent=self._gateway_device.api,
                 )
