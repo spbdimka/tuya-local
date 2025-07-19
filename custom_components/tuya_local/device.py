@@ -70,6 +70,8 @@ class TuyaLocalDevice(object):
         local_key,
         protocol_version,
         dev_cid,
+        #spbdimka added
+        parent_dev_id,
         hass: HomeAssistant,
         poll_only=False,
     ):
@@ -87,30 +89,49 @@ class TuyaLocalDevice(object):
             poll_only (bool): True if the device should be polled only
         """
         self._name = name
+
+        #spbdimka added
+        self._dev_id = dev_id
+        self._dev_cid = dev_cid
+        self._parent_dev_id = parent_dev_id
+        self._address = address
+        self._local_key = local_key
+
         self._children = []
         self._force_dps = []
         self._product_ids = []
         self._running = False
         self._shutdown_listener = None
         self._startup_listener = None
+
+        #spbdimka added
+        self._gateway_device = None
+        self._hass = hass
+
         self._api_protocol_version_index = None
         self._api_protocol_working = False
         self._api_working_protocol_failures = 0
         self.dev_cid = dev_cid
         try:
             if dev_cid:
+                _LOGGER.debug("spbdimka dev_cid TRUE")
                 if hass.data[DOMAIN].get(dev_id) and name != "Test":
                     parent = hass.data[DOMAIN][dev_id]["tuyadevice"]
                 else:
                     parent = tinytuya.Device(dev_id, address, local_key)
                     if name != "Test":
                         hass.data[DOMAIN][dev_id] = {"tuyadevice": parent}
-                self._api = tinytuya.Device(
+
+                #spbdimka added
+                self._gateway_device = TuyaLocalGatewayDeviceRegistry.get_gateway_device(self)
+                self._api = TinyTuyaDeviceWrapper(
+                    self,
                     dev_cid,
                     cid=dev_cid,
-                    parent=parent,
+                    parent=self._gateway_device.api,
                 )
             else:
+                _LOGGER.debug("spbdimka dev_cid FALSE")
                 if hass.data[DOMAIN].get(dev_id) and name != "Test":
                     self._api = hass.data[DOMAIN][dev_id]["tuyadevice"]
                 else:
@@ -133,7 +154,9 @@ class TuyaLocalDevice(object):
             self._api.parent.set_socketRetryLimit(1)
 
         self._refresh_task = None
-        self._protocol_configured = protocol_version
+        #spbdimka edited
+        _LOGGER.debug("self._gateway_device.api_protocol_version: %s", self._gateway_device.api_protocol_version)
+        self._protocol_configured = self._gateway_device.api_protocol_version if self._gateway_device.api_protocol_version else protocol_version
         self._poll_only = poll_only
         self._temporary_poll = False
         self._reset_cached_state()
@@ -606,6 +629,9 @@ class TuyaLocalDevice(object):
             for key in properties.keys():
                 pending_updates[key]["updated_at"] = now
                 pending_updates[key]["sent"] = True
+            #spbdimka added
+            if self._gateway_device:
+                self._gateway_device.trigger_subdevice_update(self.dev_cid)
         finally:
             self._lock.release()
 
@@ -628,6 +654,8 @@ class TuyaLocalDevice(object):
                     if isinstance(retval, dict) and "Error" in retval:
                         raise AttributeError(retval["Error"])
                     self._api_protocol_working = True
+                    if self._gateway_device:
+                        self._gateway_device.confirm_protocol_version()
                     self._api_working_protocol_failures = 0
                     return retval
             except Exception as e:
