@@ -30,6 +30,7 @@ from .const import (
     API_PROTOCOL_VERSIONS,
     CONF_DEVICE_CID,
     CONF_DEVICE_ID,
+    CONF_DEVICE_PARENT,
     CONF_LOCAL_KEY,
     CONF_POLL_ONLY,
     CONF_PROTOCOL_VERSION,
@@ -66,6 +67,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input=None):
         errors = {}
+        devparent_opts = {}
 
         if self.hass.data.get(DOMAIN) is None:
             self.hass.data[DOMAIN] = {}
@@ -326,6 +328,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         proto_opts = {"default": 3.3}
         polling_opts = {"default": False}
         devcid_opts = {}
+        devparent_opts = {}
 
         if self.__cloud_device is not None:
             # We already have some or all of the device settings from the cloud flow. Set them into the defaults.
@@ -359,6 +362,8 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 key_opts["default"] = user_input[CONF_LOCAL_KEY]
                 if CONF_DEVICE_CID in user_input:
                     devcid_opts["default"] = user_input[CONF_DEVICE_CID]
+                if CONF_DEVICE_PARENT in user_input:
+                    devparent_opts["default"] = user_input[CONF_DEVICE_PARENT]
                 proto_opts["default"] = user_input[CONF_PROTOCOL_VERSION]
                 polling_opts["default"] = user_input[CONF_POLL_ONLY]
 
@@ -375,6 +380,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                     ): vol.In(["auto"] + API_PROTOCOL_VERSIONS),
                     vol.Required(CONF_POLL_ONLY, **polling_opts): bool,
                     vol.Optional(CONF_DEVICE_CID, **devcid_opts): str,
+                    vol.Optional(CONF_DEVICE_PARENT, **devparent_opts): str,
                 }
             ),
             errors=errors,
@@ -509,6 +515,10 @@ class OptionsFlowHandler(OptionsFlow):
             vol.Required(
                 CONF_POLL_ONLY, default=config.get(CONF_POLL_ONLY, False)
             ): bool,
+            vol.Optional(
+                CONF_DEVICE_PARENT,
+                default=config.get(CONF_DEVICE_PARENT, ""),
+            ): str,
         }
         cfg = await self.hass.async_add_executor_job(
             get_config,
@@ -527,6 +537,7 @@ class OptionsFlowHandler(OptionsFlow):
 def create_test_device(hass: HomeAssistant, config: dict):
     """Set up a tuya device based on passed in config."""
     subdevice_id = config.get(CONF_DEVICE_CID)
+    parent = config.get(CONF_DEVICE_PARENT)
     device = TuyaLocalDevice(
         "Test",
         config[CONF_DEVICE_ID],
@@ -534,6 +545,7 @@ def create_test_device(hass: HomeAssistant, config: dict):
         config[CONF_LOCAL_KEY],
         config[CONF_PROTOCOL_VERSION],
         subdevice_id,
+        parent,
         hass,
         True,
     )
@@ -555,11 +567,13 @@ async def async_test_connection(config: dict, hass: HomeAssistant):
             hass,
             config,
         )
+
         await device.async_refresh()
         retval = device if device.has_returned_state else None
     except Exception as e:
         _LOGGER.warning("Connection test failed with %s %s", type(e), e)
         retval = None
+
 
     if existing and existing.get("device"):
         _LOGGER.info("Restarting device after test")
