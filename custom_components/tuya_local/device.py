@@ -429,7 +429,8 @@ class TuyaLocalDevice(object):
             # Close the persistent connection when exiting the loop
             self._api.set_socketPersistent(False)
 
-
+    def set_detected_product_id(self, product_id):
+        self._product_ids.append(product_id)
 
     async def async_possible_types(self):
         cached_state = self._get_cached_state()
