@@ -177,6 +177,7 @@ class TuyaLocalDevice(object):
     def name(self):
         return self._name
 
+    @property
     def address(self):
         return self._address
 
@@ -749,6 +750,8 @@ class TuyaLocalDevice(object):
                 self._api.parent.set_version,
                 new_version,
             )
+        if self._gateway_device:
+            await self._gateway_device.set_api_protocol_version(new_version)
 
     @staticmethod
     def get_key_for_value(obj, value, fallback=None):
