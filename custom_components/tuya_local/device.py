@@ -112,8 +112,7 @@ class TuyaLocalDevice(object):
         self._api_protocol_version_index = None
         self._api_protocol_working = False
         self._api_working_protocol_failures = 0
-        #spbdimka deleted
-        #self.dev_cid = dev_cid
+        self.dev_cid = dev_cid
         try:
             _LOGGER.debug(hass)
             if dev_cid:
@@ -340,12 +339,33 @@ class TuyaLocalDevice(object):
         if self._gateway_device:
             self._gateway_device.disable_connection_test_mode()
 
-
-
     async def async_receive(self):
+        """Receive messages from a persistent connection asynchronously."""
         if self._gateway_device:
             result_queue = self._gateway_device.start_monitoring_subdevice(self)
 
+            while self._running:
+                try:
+                    result = await result_queue.get()
+                    if not result:
+                        _LOGGER.debug("%s exit monitoring loop since gateway stopped", self.name)
+                        self._running = False
+                    else:
+                        yield result
+                except asyncio.CancelledError:
+                    self._running = False
+                    await self._gateway_device.async_stop_monitoring_subdevice(self)
+                    raise
+
+            await self._gateway_device.async_stop_monitoring_subdevice(self)
+        else:
+            # If we didn't yet get any state from the device, we may need to
+            # negotiate the protocol before making the connection persistent
+            persist = not self.should_poll
+            # flag to alternate updatedps and status calls to ensure we get
+            # all dps updated
+            dps_updated = False
+            self._api.set_socketPersistent(persist)
 
             while self._running:
                 try:
@@ -365,9 +385,9 @@ class TuyaLocalDevice(object):
 
                     if now - last_cache > self._CACHE_TIMEOUT:
                         if (
-                            self._force_dps
-                            and not dps_updated
-                            and self._api_protocol_working
+                                self._force_dps
+                                and not dps_updated
+                                and self._api_protocol_working
                         ):
                             poll = await self._retry_on_failed_connection(
                                 lambda: self._api.updatedps(self._force_dps),
