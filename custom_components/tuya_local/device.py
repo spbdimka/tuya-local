@@ -345,6 +345,7 @@ class TuyaLocalDevice(object):
 
         """Receive messages from a persistent connection asynchronously."""
         if self._gateway_device:
+            _LOGGER.debug("spbdimka::: %s :::: %s", self._gateway_device, self._dev_id)
             result_queue = self._gateway_device.start_monitoring_subdevice(self)
 
             while self._running:
