@@ -342,6 +342,7 @@ class TuyaLocalDevice(object):
             self._gateway_device.disable_connection_test_mode()
 
     async def async_receive(self):
+
         """Receive messages from a persistent connection asynchronously."""
         if self._gateway_device:
             result_queue = self._gateway_device.start_monitoring_subdevice(self)
