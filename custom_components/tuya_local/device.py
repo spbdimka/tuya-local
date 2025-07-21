@@ -3,6 +3,7 @@ API for Tuya Local devices.
 """
 
 import asyncio
+import json
 import logging
 from asyncio.exceptions import CancelledError
 from threading import Lock
@@ -863,6 +864,8 @@ class TuyaLocalGatewayDevice(object):
                 else:
                     try:
                         subdevice = target["subdevice"]
+                        res = json.dumps(self.__dict__)
+                        _LOGGER.debug("spbdimka Printing self object: %s", res)
                         _LOGGER.debug("Gateway %s poll status for subdevice: %s",self._dev_id, subdevice.name)
 
                         receive_required = target["pending_update_count"] > 0
