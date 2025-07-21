@@ -112,20 +112,11 @@ class TuyaLocalDevice(object):
         self._api_protocol_version_index = None
         self._api_protocol_working = False
         self._api_working_protocol_failures = 0
-        #spbdimka deleted
-        #self.dev_cid = dev_cid
+        self.dev_cid = dev_cid
         try:
             _LOGGER.debug(hass)
             if dev_cid:
                 _LOGGER.debug("spbdimka dev_cid TRUE")
-                if hass.data[DOMAIN].get(dev_id) and name != "Test":
-                    _LOGGER.debug("spbdimka not test dev_id: %s", hass.data[DOMAIN].get(dev_id))
-                    parent = hass.data[DOMAIN][dev_id]["tuyadevice"]
-                else:
-                    _LOGGER.debug("spbdimka maybe test dev_id: %s", hass.data[DOMAIN].get(dev_id))
-                    parent = tinytuya.Device(dev_id, address, local_key)
-                    if name != "Test":
-                        hass.data[DOMAIN][dev_id] = {"tuyadevice": parent}
 
                 #spbdimka added
                 self._gateway_device = TuyaLocalGatewayDeviceRegistry.get_gateway_device(self)
@@ -137,12 +128,8 @@ class TuyaLocalDevice(object):
                 )
             else:
                 _LOGGER.debug("spbdimka dev_cid FALSE")
-                if hass.data[DOMAIN].get(dev_id) and name != "Test":
-                    self._api = hass.data[DOMAIN][dev_id]["tuyadevice"]
-                else:
-                    self._api = tinytuya.Device(dev_id, address, local_key)
-                    if name != "Test":
-                        hass.data[DOMAIN][dev_id] = {"tuyadevice": self._api}
+                self._api = tinytuya.Device(dev_id, address, local_key)
+
         except Exception as e:
             _LOGGER.error(
                 "%s: %s while initialising device %s",
@@ -154,9 +141,9 @@ class TuyaLocalDevice(object):
 
         # we handle retries at a higher level so we can rotate protocol version
         self._api.set_socketRetryLimit(1)
-        if self._api.parent:
-            # Retries cause problems for other children of the parent device
-            self._api.parent.set_socketRetryLimit(1)
+        #if self._api.parent:
+        #    # Retries cause problems for other children of the parent device
+        #    self._api.parent.set_socketRetryLimit(1)
 
         self._refresh_task = None
         #spbdimka edited
@@ -166,7 +153,7 @@ class TuyaLocalDevice(object):
         self._temporary_poll = False
         self._reset_cached_state()
 
-        self._hass = hass
+        #self._hass = hass
 
         # API calls to update Tuya devices are asynchronous and non-blocking.
         # This means you can send a change and immediately request an updated
@@ -189,6 +176,7 @@ class TuyaLocalDevice(object):
     def name(self):
         return self._name
 
+    @property
     def address(self):
         return self._address
 
@@ -343,118 +331,123 @@ class TuyaLocalDevice(object):
     def resume(self):
         self._temporary_poll = False
 
+    def enable_connection_test_mode(self):
+        if self._gateway_device:
+            self._gateway_device.enable_connection_test_mode()
+
+    def disable_connection_test_mode(self):
+        if self._gateway_device:
+            self._gateway_device.disable_connection_test_mode()
+
     async def async_receive(self):
         """Receive messages from a persistent connection asynchronously."""
-        # If we didn't yet get any state from the device, we may need to
-        # negotiate the protocol before making the connection persistent
-        persist = not self.should_poll
-        # flag to alternate updatedps and status calls to ensure we get
-        # all dps updated
-        dps_updated = False
+        if self._gateway_device:
+            result_queue = self._gateway_device.start_monitoring_subdevice(self)
 
-        self._api.set_socketPersistent(persist)
-        if self._api.parent:
-            self._api.parent.set_socketPersistent(persist)
-
-        while self._running:
-            error_count = self._api_working_protocol_failures
-            try:
-                last_cache = self._cached_state.get("updated_at", 0)
-                now = time()
-                full_poll = False
-                if persist == self.should_poll:
-                    # use persistent connections after initial communication
-                    # has been established.  Until then, we need to rotate
-                    # the protocol version, which seems to require a fresh
-                    # connection.
-                    persist = not self.should_poll
-                    _LOGGER.debug(
-                        "%s persistant connection set to %s", self.name, persist
-                    )
-                    self._api.set_socketPersistent(persist)
-                    if self._api.parent:
-                        self._api.parent.set_socketPersistent(persist)
-
-                if now - last_cache > self._CACHE_TIMEOUT:
-                    if (
-                        self._force_dps
-                        and not dps_updated
-                        and self._api_protocol_working
-                    ):
-                        poll = await self._retry_on_failed_connection(
-                            lambda: self._api.updatedps(self._force_dps),
-                            f"Failed to update device dps for {self.name}",
-                        )
-                        dps_updated = True
+            while self._running:
+                try:
+                    result = await result_queue.get()
+                    if not result:
+                        _LOGGER.debug("%s exit monitoring loop since gateway stopped", self.name)
+                        self._running = False
                     else:
-                        poll = await self._retry_on_failed_connection(
-                            lambda: self._api.status(),
-                            f"Failed to fetch device status for {self.name}",
-                        )
-                        dps_updated = False
-                        full_poll = True
-                elif persist:
-                    await self._hass.async_add_executor_job(
-                        self._api.heartbeat,
-                        True,
-                    )
-                    poll = await self._hass.async_add_executor_job(
-                        self._api.receive,
-                    )
-                else:
-                    await asyncio.sleep(5)
-                    poll = None
+                        yield result
+                except asyncio.CancelledError:
+                    self._running = False
+                    await self._gateway_device.async_stop_monitoring_subdevice(self)
+                    raise
 
-                if poll:
-                    if "Error" in poll:
-                        # increment the error count if not done already
-                        if error_count == self._api_working_protocol_failures:
-                            self._api_working_protocol_failures += 1
-                        if self._api_working_protocol_failures == 1:
+            await self._gateway_device.async_stop_monitoring_subdevice(self)
+        else:
+            # If we didn't yet get any state from the device, we may need to
+            # negotiate the protocol before making the connection persistent
+            persist = not self.should_poll
+            # flag to alternate updatedps and status calls to ensure we get
+            # all dps updated
+            dps_updated = False
+            self._api.set_socketPersistent(persist)
+
+            while self._running:
+                try:
+                    last_cache = self._cached_state.get("updated_at", 0)
+                    now = time()
+                    full_poll = False
+                    if persist == self.should_poll:
+                        # use persistent connections after initial communication
+                        # has been established.  Until then, we need to rotate
+                        # the protocol version, which seems to require a fresh
+                        # connection.
+                        persist = not self.should_poll
+                        _LOGGER.debug(
+                            "%s persistant connection set to %s", self.name, persist
+                        )
+                        self._api.set_socketPersistent(persist)
+
+                    if now - last_cache > self._CACHE_TIMEOUT:
+                        if (
+                                self._force_dps
+                                and not dps_updated
+                                and self._api_protocol_working
+                        ):
+                            poll = await self._retry_on_failed_connection(
+                                lambda: self._api.updatedps(self._force_dps),
+                                f"Failed to update device dps for {self.name}",
+                            )
+                            dps_updated = True
+                        else:
+                            poll = await self._retry_on_failed_connection(
+                                lambda: self._api.status(),
+                                f"Failed to fetch device status for {self.name}",
+                            )
+                            dps_updated = False
+                            full_poll = True
+                    elif persist:
+                        await self._hass.async_add_executor_job(
+                            self._api.heartbeat,
+                            True,
+                        )
+                        poll = await self._hass.async_add_executor_job(
+                            self._api.receive,
+                        )
+                    else:
+                        await asyncio.sleep(5)
+                        poll = None
+
+                    if poll:
+                        if "Error" in poll:
                             _LOGGER.warning(
                                 "%s error reading: %s", self.name, poll["Error"]
                             )
+                            if "Payload" in poll and poll["Payload"]:
+                                _LOGGER.info(
+                                    "%s err payload: %s",
+                                    self.name,
+                                    poll["Payload"],
+                                )
                         else:
-                            _LOGGER.debug(
-                                "%s error reading: %s", self.name, poll["Error"]
-                            )
-                        if "Payload" in poll and poll["Payload"]:
-                            _LOGGER.debug(
-                                "%s err payload: %s",
-                                self.name,
-                                poll["Payload"],
-                            )
-                    else:
-                        if "dps" in poll:
-                            poll = poll["dps"]
-                        poll["full_poll"] = full_poll
-                        yield poll
+                            if "dps" in poll:
+                                poll = poll["dps"]
+                            poll["full_poll"] = full_poll
+                            yield poll
 
-                await asyncio.sleep(0.1 if self.has_returned_state else 5)
+                    await asyncio.sleep(0.1 if self.has_returned_state else 5)
 
-            except CancelledError:
-                self._running = False
-                # Close the persistent connection when exiting the loop
-                self._api.set_socketPersistent(False)
-                if self._api.parent:
-                    self._api.parent.set_socketPersistent(False)
-                raise
-            except Exception as t:
-                _LOGGER.exception(
-                    "%s receive loop error %s:%s",
-                    self.name,
-                    type(t).__name__,
-                    t,
-                )
-                self._api.set_socketPersistent(False)
-                if self._api.parent:
-                    self._api.parent.set_socketPersistent(False)
-                await asyncio.sleep(5)
+                except asyncio.CancelledError:
+                    self._running = False
+                    # Close the persistent connection when exiting the loop
+                    self._api.set_socketPersistent(False)
+                    raise
+                except Exception as t:
+                    _LOGGER.exception(
+                        "%s receive loop error %s:%s",
+                        self.name,
+                        type(t),
+                        t,
+                    )
+                    await asyncio.sleep(5)
 
-        # Close the persistent connection when exiting the loop
-        self._api.set_socketPersistent(False)
-        if self._api.parent:
-            self._api.parent.set_socketPersistent(False)
+            # Close the persistent connection when exiting the loop
+            self._api.set_socketPersistent(False)
 
     def set_detected_product_id(self, product_id):
         self._product_ids.append(product_id)
@@ -778,6 +771,8 @@ class TuyaLocalDevice(object):
                 self._api.parent.set_version,
                 new_version,
             )
+        if self._gateway_device:
+            await self._gateway_device.set_api_protocol_version(new_version)
 
     @staticmethod
     def get_key_for_value(obj, value, fallback=None):
@@ -1073,6 +1068,7 @@ class TuyaLocalGatewayDeviceRegistry(object):
             TuyaLocalGatewayDeviceRegistry._gateway_devices[key] = gateway_device
 
         _LOGGER.info("Subdevice %s(id=%s,cid=%s) uses gateway device: %s", device.name, device.dev_id, device.dev_cid, device.parent_dev_id)
+
         return gateway_device
 
     @staticmethod
