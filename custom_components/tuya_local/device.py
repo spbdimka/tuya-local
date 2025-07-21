@@ -998,6 +998,7 @@ class TuyaLocalGatewayDevice(object):
 
         if not self._running:
             _LOGGER.debug("Gateway %s starting subdevices monitoring", self._dev_id)
+            _LOGGER.debug("spbdimka Gateway %s starting subdevices monitoring", subdevice)
             self._running = True
             self._monitoring_task = self._hass.async_create_task(self.subdevices_receive_loop())
 
@@ -1071,7 +1072,7 @@ class TuyaLocalGatewayDeviceRegistry(object):
             _LOGGER.debug("Creating gateway device: %s", device.parent_dev_id)
             gateway_device = TuyaLocalGatewayDevice(device.parent_dev_id, device.address, device.local_key, device._hass)
             TuyaLocalGatewayDeviceRegistry._gateway_devices[key] = gateway_device
-
+        _LOGGER.debug("spbdimkda debug subdevice, %s::: ", device)
         _LOGGER.info("Subdevice %s(id=%s,cid=%s) uses gateway device: %s", device.name, device.dev_id, device.dev_cid, device.parent_dev_id)
 
         return gateway_device
