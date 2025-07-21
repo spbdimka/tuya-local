@@ -793,11 +793,11 @@ def setup_device(hass: HomeAssistant, config: dict):
     device = TuyaLocalDevice(
         config[CONF_NAME],
         config[CONF_DEVICE_ID],
-        config[CONF_DEVICE_PARENT],
         config[CONF_HOST],
         config[CONF_LOCAL_KEY],
         config[CONF_PROTOCOL_VERSION],
         config.get(CONF_DEVICE_CID),
+        config[CONF_DEVICE_PARENT],
         hass,
         config[CONF_POLL_ONLY],
     )
