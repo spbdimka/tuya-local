@@ -149,6 +149,7 @@ class TuyaLocalDevice(object):
         self._refresh_task = None
         #spbdimka edited
         _LOGGER.debug("self._gateway_device.api_protocol_version: %s", self._gateway_device.api_protocol_version)
+        _LOGGER.debug("self._gateway_device.api_protocol_version explicit: %s", protocol_version)
         self._protocol_configured = self._gateway_device.api_protocol_version if self._gateway_device.api_protocol_version else protocol_version
         self._poll_only = poll_only
         self._temporary_poll = False
@@ -835,6 +836,8 @@ class TuyaLocalGatewayDevice(object):
         self._running = False
         self._subdevice_update_required = asyncio.Event()
 
+        _LOGGER.debug("spbdimka Trying init gateway \ndev_id: %s \naddress: %s\n local_key: %s\n", dev_id, address, local_key)
+
 
     async def subdevices_receive_loop(self):
         _LOGGER.info("Gateway %s started subdevices monitoring", self._dev_id)
@@ -847,7 +850,7 @@ class TuyaLocalGatewayDevice(object):
                 if (not target) or (target["pending_update_count"] <= 0):
                     target = min(self._subdevices.values(), key=lambda d: d["next_check"], default=None)
 
-                _LOGGER.debug("spbdimka Printing self object: %s --- %s", self._dev_id, target)
+                _LOGGER.debug("spbdimka Printing self object: \n%s --- \n%s", self._dev_id, target)
                 _LOGGER.debug("Gateway %s begin new poll iteration: %s(next_check=%s, pending_update_count=%s)", self._dev_id,
                               target["subdevice"].name if target else None,
                               target["next_check"] if target else None,
@@ -867,7 +870,7 @@ class TuyaLocalGatewayDevice(object):
                     try:
                         subdevice = target["subdevice"]
 
-                        _LOGGER.debug("spbdimka Printing self object: %s --- %s --- %s", self._dev_id, subdevice.dev_cid, subdevice.name)
+                        _LOGGER.debug("spbdimka Printing self object: \n%s --- \n%s --- \n%s", self._dev_id, subdevice.dev_cid, subdevice.name)
                         _LOGGER.debug("Gateway %s poll status for subdevice: %s",self._dev_id, subdevice.name)
 
                         receive_required = target["pending_update_count"] > 0
