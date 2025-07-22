@@ -636,6 +636,11 @@ class TuyaLocalDevice(object):
             self.name,
             log_json(pending_properties),
         )
+        _LOGGER.debug(
+            "spbdimka %s sending dps update: %s",
+            self.name,
+            log_json(pending_properties),
+        )
 
         await self._retry_on_failed_connection(
             lambda: self._set_values(pending_properties),
@@ -657,6 +662,7 @@ class TuyaLocalDevice(object):
             if self._gateway_device:
                 self._gateway_device.trigger_subdevice_update(self.dev_cid)
         finally:
+            _LOGGER.debug("spbdimka lock released for %s", self.dev_cid)
             self._lock.release()
 
     async def _retry_on_failed_connection(self, func, error_message):
@@ -1035,6 +1041,7 @@ class TuyaLocalGatewayDevice(object):
                 data["pending_update_lock"].acquire()
                 data["pending_update_count"] = data["pending_update_count"] + 1
             finally:
+                _LOGGER.debug("spbdimka Pending lock released for %s", data["subdevice"].name)
                 data["pending_update_lock"].release()
             self._subdevice_update_required.set()
 
