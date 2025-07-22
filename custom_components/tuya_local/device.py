@@ -861,7 +861,7 @@ class TuyaLocalGatewayDevice(object):
                 if (not target) or (target["pending_update_count"] <= 0):
                     target = min(self._subdevices.values(), key=lambda d: d["next_check"], default=None)
 
-                _LOGGER.debug("spbdimka Printing self object: ---%s --- ---%s", self._dev_id, target)
+                #_LOGGER.debug("spbdimka Printing self object: ---%s --- ---%s", self._dev_id, target)
                 _LOGGER.debug("Gateway %s begin new poll iteration: %s(next_check=%s, pending_update_count=%s)", self._dev_id,
                               target["subdevice"].name if target else None,
                               target["next_check"] if target else None,
@@ -881,7 +881,7 @@ class TuyaLocalGatewayDevice(object):
                     try:
                         subdevice = target["subdevice"]
 
-                        _LOGGER.debug("spbdimka Printing self object: ---%s --- ---%s --- ---%s", self._dev_id, subdevice.dev_cid, subdevice.name)
+                        #_LOGGER.debug("spbdimka Printing self object: ---%s --- ---%s --- ---%s", self._dev_id, subdevice.dev_cid, subdevice.name)
                         _LOGGER.debug("Gateway %s poll status for subdevice: %s",self._dev_id, subdevice.name)
 
                         receive_required = target["pending_update_count"] > 0
